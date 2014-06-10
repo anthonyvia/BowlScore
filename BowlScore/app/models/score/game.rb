@@ -19,12 +19,79 @@ class Score::Game < Common::JsonModel
 
     frame_num = 0
     self.frames.each do |frame|
-      frame_actual = frame.actual_total(self.frames[frame_num + 1], self.frames[frame_num + 2])
+      next_frame = self.frames[frame_num + 1]
+      frame_after_next = self.frames[frame_num + 2]
+
+      frame_actual = frame.actual_total(next_frame, frame_after_next, frame_num + 1)
       total_score = total_score + frame_actual
       frame_num = frame_num + 1
     end
 
-    total_score
+    best_case_score = total_score
+    worst_case_score = total_score
+    number_of_frames = self.frames.count
+
+    if number_of_frames < MAX_FRAMES_COUNT
+      perfect_frame = Score::Frame.new(PERFECT_FRAME_JSON)
+      perfect_tenth_frame = Score::Frame.new(PERFECT_TENTH_FRAME_JSON)
+      start_pos = number_of_frames - 2
+      temp_frame_num = start_pos < 0 ? 0 : start_pos # TODO: what if self.frames is empty?
+      current_frame = self.frames[temp_frame_num]
+      next_frame = self.frames[temp_frame_num + 1]
+      frame_after_next = perfect_frame
+      best_case_score = best_case_score - current_frame.current_actual_total - (next_frame.nil? ? 0 : next_frame.current_actual_total)
+      worst_case_score = worst_case_score - current_frame.current_actual_total - (next_frame.nil? ? 0 : next_frame.current_actual_total)
+
+      until temp_frame_num == MAX_FRAMES_COUNT do
+        next_frame = perfect_frame if next_frame.nil?
+        is_ninth_frame = temp_frame_num == 8
+        is_tenth_frame = temp_frame_num == 9
+
+        if is_ninth_frame == true
+          next_frame = perfect_tenth_frame
+          frame_after_next = nil
+        end
+        if is_tenth_frame == true
+          next_frame = nil
+          frame_after_next = nil
+        end
+
+        frame_actual = current_frame.actual_total(next_frame, frame_after_next, temp_frame_num + 1)
+        current_frame = next_frame
+        best_case_score = best_case_score + frame_actual
+        temp_frame_num = temp_frame_num + 1
+      end
+
+      worst_frame = Score::Frame.new(WORST_FRAME_JSON)
+      start_pos = number_of_frames - 2
+      temp_frame_num = start_pos < 0 ? 0 : start_pos # TODO: what if self.frames is empty?
+      current_frame = self.frames[temp_frame_num]
+      current_frame.reset_current_actual_total
+      next_frame = self.frames[temp_frame_num + 1]
+      frame_after_next = worst_frame
+
+      until temp_frame_num == MAX_FRAMES_COUNT do
+        next_frame = worst_frame if next_frame.nil?
+        is_ninth_frame = temp_frame_num == 8
+        is_tenth_frame = temp_frame_num == 9
+
+        if is_ninth_frame == true
+          next_frame = worst_frame
+          frame_after_next = nil
+        end
+        if is_tenth_frame == true
+          next_frame = nil
+          frame_after_next = nil
+        end
+
+        frame_actual = current_frame.actual_total(next_frame, frame_after_next, temp_frame_num + 1)
+        current_frame = next_frame
+        worst_case_score = worst_case_score + frame_actual
+        temp_frame_num = temp_frame_num + 1
+      end
+    end
+
+    return total_score, best_case_score, worst_case_score
   end
 
   def is_valid?
@@ -64,5 +131,9 @@ class Score::Game < Common::JsonModel
   MAX_SCORES_COUNT = 2
   MAX_TENTH_FRAME_SCORE_COUNT = 3
   MAX_TENTH_FRAME_TOTAL_SCORE = 30
+
+  PERFECT_FRAME_JSON = "{\"scores\" : [10]}"
+  PERFECT_TENTH_FRAME_JSON = "{\"scores\" : [10, 10, 10]}"
+  WORST_FRAME_JSON = "{\"scores\" : [0, 0]}"
 
 end

@@ -10,6 +10,9 @@ class Score::ScoreController < ApplicationController
       return
     end
 
-    render :status => :ok, :json => game.calculate_score.to_json
+    total, best, worst = game.calculate_score
+    score = Score::Score.new(total, best, worst)
+
+    render :status => :ok, :json => score.to_json
   end
 end
